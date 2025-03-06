@@ -12,6 +12,65 @@ from django.http import HttpResponse
 import openpyxl
 from openpyxl.utils import get_column_letter
 
+# provides basic CRUD functionality such as GET, POST, DELETE, PUT
+from rest_framework.viewsets import ModelViewSet
+
+# more flexibility in customizing the API behavior. Require manual defining of logic for each HTTP method
+from rest_framework.views import APIView
+from .models import CalendarTask, TodoTask
+from .serializers import CalendarTaskSerializer, TodoTaskSerializer
+from rest_framework.permissions import AllowAny
+
+
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+
+from datetime import datetime
+
+# provides endpoings for GET, POST, PUT, DELETE
+class CalendarTaskViewSet(ModelViewSet):
+    permission_classes = [AllowAny]
+    queryset = CalendarTask.objects.all()
+    serializer_class = CalendarTaskSerializer
+
+class TodoTaskViewSet(ModelViewSet):
+    queryset = TodoTask.objects.all()
+    serializer_class = TodoTaskSerializer
+    permission_classes = [AllowAny]  # allow all users to access
+
+@csrf_exempt
+def load_tasks(request):
+    """
+    Fetches tasks for a specific date passed in the query parameters.
+    """
+    # Check if the 'date' parameter is provided
+    date_str = request.GET.get('date')
+    if not date_str:
+        return JsonResponse({'error': 'Date is required'}, status=400)
+
+    try:
+        # Convert the string date to a date object (YYYY-MM-DD)
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format, should be YYYY-MM-DD'}, status=400)
+    
+    # Filter the tasks for the given date
+    tasks = CalendarTask.objects.filter(date=date)
+    
+    # Prepare the response data
+    task_data = []
+    for task in tasks:
+        task_data.append({
+            'id': task.id,
+            'name': task.name,
+            'task_type': task.task_type,
+            'priority': task.priority,
+            'date': task.date.strftime('%Y-%m-%d')  # Format date to string
+        })
+    
+    # Return the task data as JSON response
+    return JsonResponse(task_data, safe=False)
+
+
 
 @login_required
 def calendar_view(request):
